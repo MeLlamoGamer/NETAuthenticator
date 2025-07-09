@@ -3,5 +3,6 @@
 <h1>Features</h1>
 <p>- TOTP account registration</p>
 <p>- Encryption</p>
+<p>- QR Code registration</p>
 <h2>Unimplemented</h2>
-- QR Code registration
+<p>- Online Account for saving a backup</p>
