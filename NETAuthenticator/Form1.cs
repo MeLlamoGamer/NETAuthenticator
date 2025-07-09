@@ -29,6 +29,31 @@ namespace NETAuthenticator
             public string Secret { get; set; }
         }
         List<AuthAccount> accounts = new List<AuthAccount>();
+
+        string passwordPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "NETAuthenticator",
+       "password.dat"
+        );
+
+        private void SavePassword(string password)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(password);
+            byte[] encrypted = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(passwordPath, encrypted);
+        }
+
+        private string LoadPassword()
+        {
+            if (!File.Exists(passwordPath))
+                return null;
+
+            byte[] encrypted = File.ReadAllBytes(passwordPath);
+            byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(decrypted);
+        }
+
+
         public Form1()
         {
             InitializeComponent();
@@ -154,6 +179,31 @@ namespace NETAuthenticator
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            string storedPassword = LoadPassword();
+
+            using (var pwdForm = new PasswordForm())
+            {
+                pwdForm.IsSettingPassword = storedPassword == null;
+                var result = pwdForm.ShowDialog();
+
+                if (result != DialogResult.OK)
+                {
+                    Application.Exit();
+                    return;
+                }
+
+                if (storedPassword == null)
+                {
+                    SavePassword(pwdForm.EnteredPassword); // registrar
+                }
+                else if (pwdForm.EnteredPassword != storedPassword)
+                {
+                    MessageBox.Show("Contraseña incorrecta.");
+                    Application.Exit();
+                    return;
+                }
+            }
+
             listViewAccounts.View = View.Details;
             listViewAccounts.FullRowSelect = true;
             listViewAccounts.Columns.Add("Name", 99);
@@ -171,16 +221,27 @@ namespace NETAuthenticator
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
-            foreach (ListViewItem selectedItem in listViewAccounts.SelectedItems)
-            {
-                string nameToDelete = selectedItem.Text;
-                var acc = accounts.FirstOrDefault(a => a.Name == nameToDelete);
-                if (acc != null)
-                    accounts.Remove(acc);
-            }
+            DialogResult result = MessageBox.Show(
+            "Are you sure?",
+            "Delete account",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question
+            );
 
-            UpdateListView();
-            SaveAccounts();
+            if (result == DialogResult.Yes)
+            {
+                foreach (ListViewItem selectedItem in listViewAccounts.SelectedItems)
+                {
+                    string nameToDelete = selectedItem.Text;
+                    var acc = accounts.FirstOrDefault(a => a.Name == nameToDelete);
+                    if (acc != null)
+                        accounts.Remove(acc);
+                }
+
+                UpdateListView();
+                SaveAccounts();
+            }
+            else { }
         }
 
         private void listViewAccounts_KeyDown(object sender, KeyEventArgs e)

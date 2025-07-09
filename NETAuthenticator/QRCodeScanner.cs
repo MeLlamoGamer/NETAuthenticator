@@ -33,6 +33,17 @@ namespace NETAuthenticator
             }
 
             videoSource = new VideoCaptureDevice(videoDevices[0].MonikerString);
+            foreach (var cap in videoSource.VideoCapabilities)
+            {
+                int width = cap.FrameSize.Width;
+                int height = cap.FrameSize.Height;
+
+                if (Math.Abs((float)width / height - 4f / 3f) < 0.01f)
+                {
+                    videoSource.VideoResolution = cap;
+                    break;
+                }
+            }
             videoSource.NewFrame += VideoSource_NewFrame;
         }
 
@@ -52,13 +63,6 @@ namespace NETAuthenticator
                 {
                     // QR detectado, enviar evento
                     videoSource.SignalToStop();
-
-                    // Invocar en UI thread
-                    this.Invoke(new Action(() =>
-                    {
-                        QrCodeDetected?.Invoke(result.Text);
-                        this.Close();
-                    }));
                 }
                 bitmap.Dispose();
             }
@@ -77,6 +81,39 @@ namespace NETAuthenticator
         private void QrScannerForm_Load(object sender, EventArgs e)
         {
             videoSource.Start();
+        }
+
+        private void btnCapturar_Click(object sender, EventArgs e)
+        {
+            if (pictureBoxVideo.Image != null)
+            {
+                try
+                {
+                    Bitmap snapshot = new Bitmap(pictureBoxVideo.Image);
+
+                    var result = barcodeReader.Decode(snapshot);
+                    if (result != null)
+                    {
+                        videoSource.SignalToStop();
+                        QrCodeDetected?.Invoke(result.Text);
+                        this.Close();
+                    }
+                    else
+                    {
+                        MessageBox.Show("No se detectó ningún código QR en la imagen.");
+                    }
+
+                    snapshot.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al procesar la imagen: " + ex.Message);
+                }
+            }
+            else
+            {
+                MessageBox.Show("La imagen del video no está disponible.");
+            }
         }
     }
 }
